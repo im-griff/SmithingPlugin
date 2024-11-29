@@ -70,3 +70,20 @@ jobs:
       # Step 8: Build with Maven
       - name: Build with Maven
         run: mvn -B clean package --file pom.xml
+
+      # Step 9: Build the jar
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: SmithingPlugin
+          path: target/smithingplugin-1.0-SNAPSHOT.jar
+
+      # Step 10: Add to releases
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: target/smithingplugin-1.0-SNAPSHOT.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.SMITHING_PLUGIN_TOKEN }}
+      
+    
