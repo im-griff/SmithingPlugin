@@ -16,11 +16,10 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Check out the repository
+      # Step 1: Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -32,19 +31,25 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      # Step 3: Cache Maven packages
-      - name: Cache Maven packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
+      # Step 3: Install Git
+      - name: Install Git
+        run: sudo apt-get install -y git
 
-      # Step 4: Build with Maven
+      # Step 4: Build Spigot with BuildTools
+      - name: Build Spigot with BuildTools
+        run: |
+          mkdir buildtools
+          cd buildtools
+          curl -o BuildTools.jar https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar
+          java -jar BuildTools.jar --rev 1.21.3
+          cd ..
+
+      # Step 5: Install Spigot API to local Maven repository
+      - name: Install Spigot API to local Maven repository
+        run: |
+          mvn install:install-file -Dfile=buildtools/Spigot/Spigot-API/target/spigot-api-1.21.3-R0.1-SNAPSHOT.jar \
+            -DgroupId=org.spigotmc -DartifactId=spigot-api -Dversion=1.21.3-R0.1-SNAPSHOT -Dpackaging=jar
+
+      # Step 6: Build with Maven
       - name: Build with Maven
         run: mvn -B clean package --file pom.xml
-
-      # Optional: Update dependency graph for Dependabot
-      - name: Update dependency graph
-        uses: advanced-security/maven-dependency-submission-action@571e99aab1055c2e71a1e2309b9691de18d6b7d6
