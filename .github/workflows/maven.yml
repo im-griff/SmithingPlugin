@@ -1,11 +1,3 @@
-# This workflow will build a Java project with Maven, and cache/restore any dependencies to improve the workflow execution time
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-java-with-maven
-
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
 name: Java CI with Maven
 
 on:
@@ -23,33 +15,58 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Step 2: Set up JDK 22
+      # Step 2: Cache JDK 22
+      - name: Cache JDK 22
+        uses: actions/cache@v3
+        with:
+          path: /opt/hostedtoolcache/jdk/22
+          key: jdk-22-${{ runner.os }}
+          restore-keys: |
+            jdk-22-
+
+      # Step 3: Set up JDK 22 (only if not cached)
       - name: Set up JDK 22
+        if: steps.cache.outputs.cache-hit != 'true'
         uses: actions/setup-java@v3
         with:
           java-version: '22'
           distribution: 'temurin'
           cache: maven
 
-      # Step 3: Install Git
-      - name: Install Git
-        run: sudo apt-get install -y git
+      # Step 4: Cache BuildTools
+      - name: Cache BuildTools
+        uses: actions/cache@v3
+        with:
+          path: buildtools/
+          key: buildtools-${{ runner.os }}-${{ hashFiles('buildtools/BuildTools.jar') }}
+          restore-keys: |
+            buildtools-${{ runner.os }}-
 
-      # Step 4: Build Spigot with BuildTools
+      # Step 5: Build Spigot with BuildTools (if not cached)
       - name: Build Spigot with BuildTools
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
-          mkdir buildtools
+          mkdir -p buildtools
           cd buildtools
           curl -o BuildTools.jar https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/artifact/target/BuildTools.jar
           java -jar BuildTools.jar --rev 1.21.3
           cd ..
 
-      # Step 5: Install Spigot API to local Maven repository
+      # Step 6: Cache Spigot API .jar
+      - name: Cache Spigot API
+        uses: actions/cache@v3
+        with:
+          path: buildtools/Spigot/Spigot-API/target/
+          key: spigot-${{ runner.os }}-${{ hashFiles('buildtools/BuildTools.jar') }}
+          restore-keys: |
+            spigot-${{ runner.os }}-
+
+      # Step 7: Install Spigot API to local Maven repository
       - name: Install Spigot API to local Maven repository
         run: |
           mvn install:install-file -Dfile=buildtools/Spigot/Spigot-API/target/spigot-api-1.21.3-R0.1-SNAPSHOT.jar \
             -DgroupId=org.spigotmc -DartifactId=spigot-api -Dversion=1.21.3-R0.1-SNAPSHOT -Dpackaging=jar
 
-      # Step 6: Build with Maven
+      # Step 8: Build with Maven
       - name: Build with Maven
         run: mvn -B clean package --file pom.xml
